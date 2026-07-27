@@ -1,16 +1,47 @@
 const express = require('express');
 const router = express.Router();
 const Order = require('../models/Order');
+const Courier = require('../models/Courier'); // 👈 Подключаем модель курьера
 
-// POST /api/orders — СОХРАНЕНИЕ ЗАКАЗА В БАЗУ
+// POST /api/orders — СОХРАНЕНИЕ ЗАКАЗА В БАЗУ И АВТО-НАЗНАЧЕНИЕ КУРЬЕРА
 router.post('/', async (req, res) => {
     try {
         console.log("--> Пришел новый заказ от клиента:", req.body);
         
-        const newOrder = new Order(req.body);
+        const orderData = { ...req.body };
+        const deliveryAddress = orderData.address || "";
+
+        // 1. Ищем курьера, у которого хотя бы один из районов (routes) совпадает с адресом доставки/магазина
+        let assignedCourier = await Courier.findOne({
+            routes: { $elemMatch: { $regex: deliveryAddress, $options: "i" } }
+        });
+
+        // 2. Если по точному району не нашли, назначаем любого свободного курьера (fallback)
+        if (!assignedCourier) {
+            assignedCourier = await Courier.findOne();
+        }
+
+        if (assignedCourier) {
+            orderData.assignedCourierId = assignedCourier._id;
+            orderData.assignedCourier = assignedCourier.name;
+            console.log(`--> Заказ назначен курьеру: ${assignedCourier.name} (ID: ${assignedCourier._id})`);
+        } else {
+            console.log("⚠️ В базе нет зарегистрированных курьеров для назначения.");
+        }
+
+        // 3. Сохраняем заказ в MongoDB
+        const newOrder = new Order(orderData);
         const savedOrder = await newOrder.save();
         
         console.log("--> Заказ успешно записан в MongoDB с ID:", savedOrder._id);
+
+        // 4. Мгновенная отправка события курьерам и админу через WebSockets
+        const io = req.app.get('io');
+        if (io) {
+            io.emit("newOrder", savedOrder);
+            console.log("--> WebSocket событие 'newOrder' отправлено клиентам!");
+        }
+
         res.status(201).json(savedOrder);
     } catch (err) {
         console.error("❌ Ошибка сохранения в БД:", err);
@@ -37,6 +68,30 @@ router.delete('/:id', async (req, res) => {
         res.json({ message: "Заказ успешно удален" });
     } catch (err) {
         res.status(500).json({ message: "Ошибка удаления", error: err.message });
+    }
+});
+
+// PUT /api/orders/:id — ОБНОВЛЕНИЕ СТАТУСА ЗАКАЗА (когда курьер нажимает "Завершить")
+router.put('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+
+        const updatedOrder = await Order.findByIdAndUpdate(
+            id, 
+            { status: status }, // Обновляем статус (например, на "completed")
+            { new: true } // Возвращаем уже обновленный документ
+        );
+
+        if (!updatedOrder) {
+            return res.status(404).json({ message: "Заказ не найден" });
+        }
+
+        console.log(`--> Заказ ${id} успешно обновлен. Новый статус: ${status}`);
+        res.json(updatedOrder);
+    } catch (err) {
+        console.error("❌ Ошибка при обновлении заказа:", err);
+        res.status(500).json({ message: "Ошибка при обновлении заказа", error: err.message });
     }
 });
 

@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Product = require('../models/Product');
-const upload = require('../middleware/upload');
-const fs = require('fs');
-const path = require('path');
+const upload = require('../middleware/upload'); // Импортируем загрузчик
+const cloudinary = require('cloudinary').v2;
 
 // ДОБАВИТЬ ТОВАР
 router.post('/', upload.single('image'), async (req, res) => {
@@ -14,7 +13,7 @@ router.post('/', upload.single('image'), async (req, res) => {
             return res.status(400).json({ message: 'Изображение обязательно' });
         }
 
-        const imagePath = `/uploads/${req.file.filename}`;
+        const imagePath = req.file.path;
 
         const product = new Product({
             title,
@@ -27,6 +26,7 @@ router.post('/', upload.single('image'), async (req, res) => {
         await product.save();
         res.status(201).json(product);
     } catch (error) {
+        console.error('Ошибка при добавлении товара:', error);
         res.status(500).json({ message: 'Ошибка при добавлении', error: error.message });
     }
 });
@@ -49,18 +49,26 @@ router.delete('/:id', async (req, res) => {
             return res.status(404).json({ message: 'Товар не найден' });
         }
 
-        // Удаляем картинку из папки uploads
-        const imagePath = path.join(__dirname, '..', product.image);
-        if (fs.existsSync(imagePath)) {
-            fs.unlinkSync(imagePath);
+        if (product.image && product.image.includes('cloudinary')) {
+            try {
+                const urlParts = product.image.split('/');
+                const filenameWithExt = urlParts.pop();
+                const folderName = urlParts.pop();
+                const filename = filenameWithExt.split('.')[0];
+                const publicId = `${folderName}/${filename}`;
+
+                await cloudinary.uploader.destroy(publicId);
+            } catch (cloudErr) {
+                console.error('Не удалось удалить картинку из облака:', cloudErr);
+            }
         }
 
         await Product.findByIdAndDelete(req.params.id);
-        res.json({ message: 'Товар успешно удален' });
+        res.json({ message: 'Товар и его изображение успешно удалены' });
     } catch (error) {
+        console.error('Ошибка при удалении товара:', error);
         res.status(500).json({ message: 'Ошибка сервера', error: error.message });
     }
 });
 
-// ОБЯЗАТЕЛЬНАЯ СТРОКА ДЛЯ РАБОТЫ РОУТИНГА
 module.exports = router;
