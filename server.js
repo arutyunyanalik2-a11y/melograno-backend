@@ -1,96 +1,74 @@
 const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const path = require('path');
-const http = require('http');
-const { Server } = require('socket.io');
-require('dotenv').config();
+const router = express.Router();
+const Product = require('../models/Product');
+const upload = require('../middleware/upload'); // Импортируем загрузчик
+const cloudinary = require('cloudinary').v2;
 
-const authRoutes = require('./routes/auth');
-const productRoutes = require('./routes/products');
-const orderRoutes = require('./routes/orders');
-const storeRoutes = require('./routes/storeRoutes');       // Роуты магазинов
-const courierRoutes = require('./routes/courierRoutes');   // Роуты курьеров
-const Courier = require('./models/Courier');               // Модель курьера для авто-создания
+// ДОБАВИТЬ ТОВАР
+router.post('/', upload.single('image'), async (req, res) => {
+    try {
+        const { title, price, description, category } = req.body;
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server, {
-    cors: {
-        origin: "*", // Разрешаем запросы со всех устройств (ПК, телефон в локальной сети)
-        methods: ["GET", "POST"]
-    }
-});
-
-// Делаем `io` доступным внутри роутов через `req.app.get('io')`
-app.set('io', io);
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-
-// Делаем папку /uploads публичной (для доступа к картинкам)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
-    setHeaders: function (res, path, stat) {
-        res.set('Access-Control-Allow-Origin', '*');
-    }
-}));
-// Подключение маршрутов (Роутов)
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/stores', storeRoutes);       
-app.use('/api/couriers', courierRoutes);   
-
-// Обработка WebSocket соединений в реальном времени
-io.on('connection', (socket) => {
-    console.log('Клиент подключился по WebSocket:', socket.id);
-
-    socket.on('disconnect', () => {
-        console.log('Клиент отключился:', socket.id);
-    });
-});
-
-// Подключение к MongoDB и запуск сервера
-const PORT = process.env.PORT || 5000;
-
-mongoose.connect(process.env.MONGO_URI)
-    .then(async () => {
-        console.log('MongoDB успешно подключена!');
-
-        try {
-            // Принудительно очищаем коллекцию курьеров (удаляем Александра)
-            await Courier.deleteMany({}); 
-            
-            // Записываем новый список
-            const initialCouriers = [
-                { name: "Ավագյան Դավիթ", password: "101", routes: ["ул. Абовяна, 5"] },
-                { name: "Արթուր Գյուլնազարյան", password: "102", routes: ["ул. Абовяна, 7"] },
-                { name: "Արթուր Խաչատրյան", password: "103", routes: [] },
-                { name: "Արշակ Փոթոյան", password: "104", routes: [] },
-                { name: "Արսեն Ղասարյան", password: "105", routes: [] },
-                { name: "Արտակ Ղեւոնդյան", password: "106", routes: [] },
-                { name: "Բաղրամյան Ռոման", password: "107", routes: [] },
-                { name: "Գառնիկ Գասպարյան", password: "108", routes: [] },
-                { name: "Հայրապետ Բաղդասարյան", password: "109", routes: [] },
-                { name: "Մելոյան Սերյոժա", password: "110", routes: [] },
-                { name: "Մինասյան Գոռ", password: "111", routes: [] },
-                { name: "Մովսիսյան Սերգեյ", password: "112", routes: [] },
-                { name: "Ռոբերտ Բաղրամյան", password: "113", routes: [] },
-                { name: "Վարդանյան Հովհաննես", password: "114", routes: [] }
-            ];
-            
-            await Courier.insertMany(initialCouriers);
-            console.log('База обновлена: старые курьеры удалены, новые добавлены!');
-            
-        } catch (err) {
-            console.error('Ошибка при обновлении курьеров:', err);
+        if (!req.file) {
+            return res.status(400).json({ message: 'Изображение обязательно' });
         }
 
-        server.listen(PORT, () => {
-            console.log(`Сервер запущен на порту ${PORT}`);
+        const imagePath = req.file.path;
+
+        const product = new Product({
+            title,
+            price,
+            description,
+            category,
+            image: imagePath
         });
-    })
-    .catch((err) => {
-        console.error('Ошибка подключения к MongoDB:', err);
-    });
+
+        await product.save();
+        res.status(201).json(product);
+    } catch (error) {
+        console.error('Ошибка при добавлении товара:', error);
+        res.status(500).json({ message: 'Ошибка при добавлении', error: error.message });
+    }
+});
+
+// ПОЛУЧИТЬ ВСЕ ТОВАРЫ
+router.get('/', async (req, res) => {
+    try {
+        const products = await Product.find().sort({ createdAt: -1 });
+        res.json(products);
+    } catch (error) {
+        res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+    }
+});
+
+// УДАЛИТЬ ТОВАР
+router.delete('/:id', async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.id);
+        if (!product) {
+            return res.status(404).json({ message: 'Товар не найден' });
+        }
+
+        if (product.image && product.image.includes('cloudinary')) {
+            try {
+                const urlParts = product.image.split('/');
+                const filenameWithExt = urlParts.pop();
+                const folderName = urlParts.pop();
+                const filename = filenameWithExt.split('.')[0];
+                const publicId = `${folderName}/${filename}`;
+
+                await cloudinary.uploader.destroy(publicId);
+            } catch (cloudErr) {
+                console.error('Не удалось удалить картинку из облака:', cloudErr);
+            }
+        }
+
+        await Product.findByIdAndDelete(req.params.id);
+        res.json({ message: 'Товар и его изображение успешно удалены' });
+    } catch (error) {
+        console.error('Ошибка при удалении товара:', error);
+        res.status(500).json({ message: 'Ошибка сервера', error: error.message });
+    }
+});
+
+module.exports = router;
