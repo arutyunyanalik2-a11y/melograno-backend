@@ -5,13 +5,24 @@ const router = express.Router();
 
 router.post('/register', async (req, res) => {
     try {
-        const { name, email, password, address, zone } = req.body;
+        // 👇 ДОБАВЛЕНО: discountPercent в запрос
+        const { name, email, password, address, zone, discountPercent } = req.body;
+        
         const existingStore = await Store.findOne({ email });
         if (existingStore) {
             return res.status(400).json({ error: 'Магазин с таким email уже зарегистрирован' });
         }
 
-        const newStore = new Store({ name, email, password, address, zone });
+        // 👇 ДОБАВЛЕНО: передаем discountPercent при сохранении
+        const newStore = new Store({ 
+            name, 
+            email, 
+            password, 
+            address, 
+            zone, 
+            discountPercent: discountPercent || 0 
+        });
+        
         await newStore.save();
         res.status(201).json({ message: 'Регистрация успешна', store: newStore });
     } catch (err) {
@@ -34,7 +45,9 @@ router.post('/login', async (req, res) => {
                 name: store.name,
                 email: store.email,
                 address: store.address,
-                zone: store.zone
+                zone: store.zone,
+                // 👇 ДОБАВЛЕНО: отдаем скидку при входе
+                discountPercent: store.discountPercent 
             }
         });
     } catch (err) {
