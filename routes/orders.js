@@ -11,6 +11,11 @@ router.post('/', async (req, res) => {
         const orderData = { ...req.body };
         const deliveryAddress = orderData.address ? String(orderData.address) : "";
 
+        // 👇 Выводим в лог информацию о скидке для проверки 👇
+        if (orderData.discountPercent > 0) {
+            console.log(`🎁 Применена скидка ${orderData.discountPercent}% для магазина ${orderData.shopName}!`);
+        }
+
         let assignedCourier = null;
 
         // Ищем курьера по району только если адрес реально передан
