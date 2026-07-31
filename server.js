@@ -40,8 +40,8 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/stores', storeRoutes);       
-app.use('/api/couriers', courierRoutes);   
+app.use('/api/stores', storeRoutes);
+app.use('/api/couriers', courierRoutes);
 
 // Обработка WebSocket соединений
 io.on('connection', (socket) => {
@@ -62,31 +62,97 @@ mongoose.connect(process.env.MONGO_URI)
         try {
             // Проверяем, есть ли уже курьеры в базе
             const couriersCount = await Courier.countDocuments();
-            
+
             if (couriersCount === 0) {
                 const initialCouriers = [
-                    { name: "Ավագյան Դավիթ", password: "101", routes: ["ул. Абовяна, 5"] },
-                    { name: "Արթուր Գյուլնազարյան", password: "102", routes: ["ул. Абовяна, 7"] },
-                    { name: "Արթուր Խաչատրյան", password: "103", routes: [] },
-                    { name: "Արշակ Փոթոյան", password: "104", routes: [] },
-                    { name: "Արսեն Ղասարյան", password: "105", routes: [] },
-                    { name: "Արտակ Ղեւոնդյան", password: "106", routes: [] },
-                    { name: "Բաղրամյան Ռոման", password: "107", routes: [] },
-                    { name: "Գառնիկ Գասպարյան", password: "108", routes: [] },
-                    { name: "Հայրապետ Բաղդասարյան", password: "109", routes: [] },
-                    { name: "Մելոյան Սերյոժա", password: "110", routes: [] },
-                    { name: "Մինասյան Գոռ", password: "111", routes: [] },
-                    { name: "Մովսիսյան Սերգեյ", password: "112", routes: [] },
-                    { name: "Ռոբերտ Բաղրամյան", password: "113", routes: [] },
-                    { name: "Վարդանյան Հովհաննես", password: "114", routes: [] }
+                    {
+                        name: "Գ. Արթուր",
+                        password: "101",
+                        routes: [
+                            "Տավուշի մարզ ք. Դիլիջան Կալինինի 99/9 (Հարութ 96 ՍՊԸ - 3%)",
+                            "Տավուշ, Դիլիջան, Օրջոնիկիձե 65 15 (Պոնդոյան Անահիտ ԱՁ)"
+                        ]
+                    },
+                    {
+                        name: "Խ. Արթուր",
+                        password: "102",
+                        routes: [
+                            "Երևան, Նոր Նորք, Աճառյան 1 փակ. 4/4 շ 17-18 տար. (Շահավետ Աճառյան ՍՊԸ)",
+                            "Երևան Ալմա-Աթա 94 (Նելա ՍՊԸ)"
+                        ]
+                    },
+                    {
+                        name: "Արշակ",
+                        password: "103",
+                        routes: [
+                            "Երևան Էրեբունի Էրեբունի 3/1 (Ն և Մ ՍՊԸ)",
+                            "Երևան Սեբաստիա 12 շ 57 շին. (Մարկետ թրեյդ ՍՊԸ)"
+                        ]
+                    },
+                    {
+                        name: "Արտակ",
+                        password: "104",
+                        routes: [
+                            "Երևան, Ավանեսով 8/3 48 (Բոխյան Հայկուշ Ա/Ձ)",
+                            "Երևան, Էրեբունի, Խաղաղ Դոնի փ. 27 խանութ (Նարե Տ ՍՊԸ)"
+                        ]
+                    },
+                    {
+                        name: "Արսեն",
+                        password: "105",
+                        routes: [
+                            "Արմավիրի մարզ ք.Արմավիր Հանրապետության փ 12/1 (ԱՆԱՀԻՏ-Ռ ՍՊԸ)",
+                            "Արմավիրի մարզ ք. Արմավիր Նալբանդյան 29/2 0 (Գրիգորյան Իվոնա Ա/Ձ)"
+                        ]
+                    },
+                    {
+                        name: "Գառնիկ",
+                        password: "106",
+                        routes: [
+                            "Կոտայքի մարզ ք.Աբովյան Սևանի 2 (Կինգ Վերժինե ՍՊԸ - 3%)",
+                            "Կոտայք, Աբովյան, Գառնիի փողոց, 6 (Կաթիլց ՍՊԸ - 4%)"
+                        ]
+                    },
+                    {
+                        name: "Ռոբերտ",
+                        password: "107",
+                        routes: [
+                            "Արարատ, Աղբյուր Սերոբի փ. 6 11 (Քարավան 6 ՍՊԸ)",
+                            "Արարատի մարզ գ. Վ.Արտաշատ Շահումյան 5 (Լա-Վա-Դա ՍՊԸ)"
+                        ]
+                    },
+                    {
+                        name: "Մելոյան ",
+                        password: "108",
+                        routes: [
+                            "ք. Երևան Ավետ Ավետիսյան 63 (ՍԱՍ գրուպ ՍՊԸ - 3%)",
+                            "Երևան, Կենտրոն, Տերյան 68ա (Ռաֆֆի Զաքոյան ԱՁ)"
+                        ]
+                    },
+                    {
+                        name: "Սերգեյ",
+                        password: "109",
+                        routes: [
+                            "Գեղարքունիքի մարզ գ.Ներքին Գետաշեն - (Կոթ ՍՊԸ - 2%)",
+                            "Գեղարքունիքի մարզ գ.Ծովինար - (Եփրեմյան Գոռ)"
+                        ]
+                    },
+                    {
+                        name: "Հովիկ",
+                        password: "110",
+                        routes: [
+                            "Շիրակ, Գյումրի, Տրդատ ճարտարապետ 1/3 (Բակմազյան Գառնիկ ԱՁ - 3%)",
+                            "Շիրակ, Գյումրի, Գորկու 104/1 (Վարդանյան Հովհաննես - 3.5%)"
+                        ]
+                    }
                 ];
-                
+
                 await Courier.insertMany(initialCouriers);
-                console.log('База обновлена: базовые курьеры успешно добавлены!');
+                console.log('База обновлена: полная таблица агентов и маршрутов добавлена!');
             } else {
                 console.log(`Курьеры уже есть в базе (${couriersCount} чел.), создание пропущено для защиты _id.`);
             }
-            
+
         } catch (err) {
             console.error('Ошибка при проверке/обновлении курьеров:', err);
         }
