@@ -5,7 +5,7 @@ const Order = require('../models/Order');
 const router = express.Router();
 
 // 1. GET /api/couriers — Получение всех курьеров
-router.get('/', async (req, res) => {
+router.get('/couriers', async (req, res) => {
     try {
         const couriers = await Courier.find();
         res.json(couriers);
@@ -14,11 +14,9 @@ router.get('/', async (req, res) => {
     }
 });
 
-// 2. GET /api/courier-orders (или /api/couriers/all-orders) — Все курьерские заказы для админки
-// Это исправит ошибку 404, когда фронтенд запрашивает все заказы курьеров!
-router.get('/orders/all', async (req, res) => {
+// 2. GET /api/courier-orders — Все курьерские заказы для админки (исправляет ошибку 404)
+router.get('/courier-orders', async (req, res) => {
     try {
-        // Ищем заказы, у которых привязан курьер (по ID или по имени)
         const orders = await Order.find({
             $or: [
                 { assignedCourierId: { $exists: true, $ne: null } },
@@ -33,7 +31,7 @@ router.get('/orders/all', async (req, res) => {
 });
 
 // 3. POST /api/couriers/login — Авторизация курьера
-router.post('/login', async (req, res) => {
+router.post('/couriers/login', async (req, res) => {
     try {
         const { courierId, password } = req.body;
         const courier = await Courier.findById(courierId);
@@ -55,7 +53,7 @@ router.post('/login', async (req, res) => {
 });
 
 // 4. GET /api/couriers/:id/orders — Заказы конкретного курьера
-router.get('/:id/orders', async (req, res) => {
+router.get('/couriers/:id/orders', async (req, res) => {
     try {
         const courierId = req.params.id;
         const orders = await Order.find({ assignedCourierId: courierId }).sort({ createdAt: -1 });
@@ -65,10 +63,13 @@ router.get('/:id/orders', async (req, res) => {
     }
 });
 
-// 5. DELETE /api/couriers/orders/:id — Удаление заказа курьера из админки
-router.delete('/orders/:id', async (req, res) => {
+// 5. DELETE /api/courier-orders/:id — Удаление заказа курьера из админки
+router.delete('/courier-orders/:id', async (req, res) => {
     try {
-        await Order.findByIdAndDelete(req.params.id);
+        const deletedOrder = await Order.findByIdAndDelete(req.params.id);
+        if (!deletedOrder) {
+            return res.status(404).json({ error: 'Заказ не найден' });
+        }
         res.json({ message: 'Заказ успешно удален' });
     } catch (err) {
         res.status(500).json({ error: err.message });

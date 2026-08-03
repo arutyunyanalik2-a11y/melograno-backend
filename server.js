@@ -26,19 +26,29 @@ app.set('io', io);
 app.use(cors());
 app.use(express.json());
 
+// Раздача статических файлов (изображений)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
     setHeaders: function (res, path, stat) {
         res.set('Access-Control-Allow-Origin', '*');
     }
 }));
 
+// Подключение роутов API
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/stores', storeRoutes);
-app.use('/api/couriers', courierRoutes);
-app.use('/api/courier-orders', courierRoutes);
 
+// ИСПРАВЛЕНО: Единое подключение courierRoutes к префиксу /api.
+// Это автоматически сделает доступными роуты:
+// - GET  /api/couriers
+// - GET  /api/courier-orders
+// - POST /api/couriers/login
+// - GET  /api/couriers/:id/orders
+// - DELETE /api/courier-orders/:id
+app.use('/api', courierRoutes);
+
+// WebSocket подключение
 io.on('connection', (socket) => {
     console.log('Клиент подключился по WebSocket:', socket.id);
     socket.on('disconnect', () => {
@@ -48,12 +58,13 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 5000;
 
+// Подключение к MongoDB и запуск сервера
 mongoose.connect(process.env.MONGO_URI)
     .then(async () => {
         console.log('MongoDB успешно подключена!');
 
         try {
-            // ПРОВЕРКА: создаем начальных курьеров ТОЛЬКО если их нет в базе
+            // Проверка и инициализация курьеров по умолчанию
             const count = await Courier.countDocuments();
             if (count === 0) {
                 const initialCouriers = [
