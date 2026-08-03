@@ -39,6 +39,47 @@ router.post('/couriers/login', async (req, res) => {
     }
 });
 
+// POST /api/couriers/:id/routes — Добавить новый маршрут (день и адрес) курьеру
+router.post('/couriers/:id/routes', async (req, res) => {
+    try {
+        const { day, address } = req.body;
+        if (!day || !address) {
+            return res.status(400).json({ error: 'Укажите день и адрес' });
+        }
+
+        const courier = await Courier.findById(req.params.id);
+        if (!courier) {
+            return res.status(404).json({ error: 'Курьер не найден' });
+        }
+
+        courier.routes.push({ day, address });
+        await courier.save();
+
+        res.json(courier);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/couriers/:id/routes/:routeId — Удалить маршрут у курьера
+router.delete('/couriers/:id/routes/:routeId', async (req, res) => {
+    try {
+        const courier = await Courier.findById(req.params.id);
+        if (!courier) {
+            return res.status(404).json({ error: 'Курьер не найден' });
+        }
+
+        courier.routes = courier.routes.filter(
+            r => r._id.toString() !== req.params.routeId
+        );
+        await courier.save();
+
+        res.json(courier);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // GET /api/couriers/:id/orders — Заказы конкретного курьера
 router.get('/couriers/:id/orders', async (req, res) => {
     try {
