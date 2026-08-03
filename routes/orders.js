@@ -9,30 +9,31 @@ router.post('/', async (req, res) => {
         console.log("--> Пришел новый заказ от клиента:", req.body);
         
         const orderData = { ...req.body };
-        const deliveryAddress = orderData.address ? String(orderData.address) : "";
+        const deliveryAddress = orderData.address ? String(orderData.address).trim() : "";
 
-        // 👇 Выводим в лог информацию о скидке для проверки 👇
         if (orderData.discountPercent > 0) {
             console.log(`🎁 Применена скидка ${orderData.discountPercent}% для магазина ${orderData.shopName}!`);
         }
 
         let assignedCourier = null;
 
-        // Ищем курьера по району только если адрес реально передан
-        if (deliveryAddress.trim() !== "") {
+        // Ищем курьера по району (проверяем поле address внутри элементов массива routes)
+        if (deliveryAddress !== "") {
+            const escapedAddress = deliveryAddress.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
             assignedCourier = await Courier.findOne({
-                routes: { $elemMatch: { $regex: deliveryAddress, $options: "i" } }
+                "routes.address": { $regex: escapedAddress, $options: "i" }
             });
         }
 
-        // Если по району не нашли или адрес пуст — берем первого свободного курьера
+        // Если по району не нашли или адрес пуст — берем первого курьера
         if (!assignedCourier) {
             assignedCourier = await Courier.findOne();
         }
 
         if (assignedCourier) {
-            orderData.assignedCourierId = assignedCourier._id;
+            orderData.assignedCourierId = String(assignedCourier._id);
             orderData.assignedCourier = assignedCourier.name;
+            orderData.courierName = assignedCourier.name;
             console.log("--> Заказ назначен курьеру:", assignedCourier.name, "(ID:", assignedCourier._id, ")");
         } else {
             console.log("⚠️ В базе нет зарегистрированных курьеров для назначения.");
@@ -59,7 +60,7 @@ router.post('/', async (req, res) => {
 // GET /api/orders — ПОЛУЧЕНИЕ ВСЕХ ЗАКАЗОВ ДЛЯ АДМИНКИ
 router.get('/', async (req, res) => {
     try {
-        const orders = await Order.find().sort({ date: -1 });
+        const orders = await Order.find().sort({ date: -1, createdAt: -1 });
         console.log("--> Запрошены заказы для админки. Найдено в БД:", orders.length);
         res.json(orders);
     } catch (err) {

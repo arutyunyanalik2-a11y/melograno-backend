@@ -43,7 +43,19 @@ router.post('/couriers/login', async (req, res) => {
 router.get('/couriers/:id/orders', async (req, res) => {
     try {
         const courierId = req.params.id;
-        const orders = await Order.find({ assignedCourierId: courierId }).sort({ createdAt: -1 });
+        const courier = await Courier.findById(courierId).catch(() => null);
+
+        const searchConditions = [
+            { assignedCourierId: String(courierId) },
+            { assignedCourierId: courierId }
+        ];
+
+        if (courier && courier.name) {
+            searchConditions.push({ assignedCourier: courier.name });
+            searchConditions.push({ courierName: courier.name });
+        }
+
+        const orders = await Order.find({ $or: searchConditions }).sort({ date: -1, createdAt: -1 });
         res.json(orders);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -60,9 +72,10 @@ router.get('/courier-orders', async (req, res) => {
         const orders = await Order.find({
             $or: [
                 { assignedCourierId: { $exists: true, $ne: null } },
+                { assignedCourier: { $exists: true, $ne: null } },
                 { courierName: { $exists: true, $ne: "" } }
             ]
-        }).sort({ createdAt: -1 });
+        }).sort({ date: -1, createdAt: -1 });
         
         res.json(orders);
     } catch (err) {
