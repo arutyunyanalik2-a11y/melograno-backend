@@ -38,6 +38,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/stores', storeRoutes);
+app.use('/api', courierRoutes);
 
 // ИСПРАВЛЕНО: Единое подключение courierRoutes к префиксу /api.
 // Это автоматически сделает доступными роуты:

@@ -1,10 +1,13 @@
 const express = require('express');
+const router = express.Router();
 const Courier = require('../models/Courier');
 const Order = require('../models/Order');
 
-const router = express.Router();
+// ==========================================
+// 1. РАБОТА С КУРЬЕРАМИ
+// ==========================================
 
-// 1. GET /api/couriers — Получение всех курьеров
+// GET /api/couriers — Получить всех курьеров
 router.get('/couriers', async (req, res) => {
     try {
         const couriers = await Courier.find();
@@ -14,23 +17,7 @@ router.get('/couriers', async (req, res) => {
     }
 });
 
-// 2. GET /api/courier-orders — Все курьерские заказы для админки (исправляет ошибку 404)
-router.get('/courier-orders', async (req, res) => {
-    try {
-        const orders = await Order.find({
-            $or: [
-                { assignedCourierId: { $exists: true, $ne: null } },
-                { courierName: { $exists: true, $ne: "" } }
-            ]
-        }).sort({ createdAt: -1 });
-        
-        res.json(orders);
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// 3. POST /api/couriers/login — Авторизация курьера
+// POST /api/couriers/login — Логин курьера
 router.post('/couriers/login', async (req, res) => {
     try {
         const { courierId, password } = req.body;
@@ -52,7 +39,7 @@ router.post('/couriers/login', async (req, res) => {
     }
 });
 
-// 4. GET /api/couriers/:id/orders — Заказы конкретного курьера
+// GET /api/couriers/:id/orders — Заказы конкретного курьера
 router.get('/couriers/:id/orders', async (req, res) => {
     try {
         const courierId = req.params.id;
@@ -63,7 +50,27 @@ router.get('/couriers/:id/orders', async (req, res) => {
     }
 });
 
-// 5. DELETE /api/courier-orders/:id — Удаление заказа курьера из админки
+// ==========================================
+// 2. РАБОТА С ЗАКАЗАМИ КУРЬЕРОВ (ДЛЯ АДМИНКИ)
+// ==========================================
+
+// GET /api/courier-orders — Все заказы курьеров для админки
+router.get('/courier-orders', async (req, res) => {
+    try {
+        const orders = await Order.find({
+            $or: [
+                { assignedCourierId: { $exists: true, $ne: null } },
+                { courierName: { $exists: true, $ne: "" } }
+            ]
+        }).sort({ createdAt: -1 });
+        
+        res.json(orders);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// DELETE /api/courier-orders/:id — Удалить заказ курьера
 router.delete('/courier-orders/:id', async (req, res) => {
     try {
         const deletedOrder = await Order.findByIdAndDelete(req.params.id);
