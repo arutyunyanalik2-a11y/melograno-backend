@@ -8,7 +8,15 @@ router.post('/', async (req, res) => {
     try {
         console.log("--> Пришел новый заказ от клиента:", req.body);
         
-        const orderData = { ...req.body };
+        // Гарантируем нормализацию поля оплаты для схемы
+        const paymentValue = req.body.paymentType || req.body.paymentMethod || req.body.payment || "card";
+
+        const orderData = { 
+            ...req.body,
+            paymentType: paymentValue,
+            paymentMethod: paymentValue
+        };
+
         const deliveryAddress = orderData.address ? String(orderData.address).trim() : "";
 
         if (orderData.discountPercent > 0) {
@@ -17,11 +25,11 @@ router.post('/', async (req, res) => {
 
         let assignedCourier = null;
 
-        // Ищем курьера по району (проверяем поле address внутри элементов массива routes)
+        // Ищем курьера по району
         if (deliveryAddress !== "") {
             const escapedAddress = deliveryAddress.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
             assignedCourier = await Courier.findOne({
-                "routes.address": { $regex: escapedAddress, $options: "i" }
+                "routes.address": { $regex: escapedAddress,$options: "i" }
             });
         }
 
@@ -57,11 +65,11 @@ router.post('/', async (req, res) => {
     }
 });
 
-// GET /api/orders — ПОЛУЧЕНИЕ ВСЕХ ЗАКАЗОВ ДЛЯ АДМИНКИ
+// GET /api/orders — ПОЛУЧЕНИЕ ВСЕХ ЗАКАЗОВ
 router.get('/', async (req, res) => {
     try {
         const orders = await Order.find().sort({ date: -1, createdAt: -1 });
-        console.log("--> Запрошены заказы для админки. Найдено в БД:", orders.length);
+        console.log("--> Запрошены заказы. Найдено в БД:", orders.length);
         res.json(orders);
     } catch (err) {
         console.error("❌ Ошибка получения из БД:", err);
