@@ -3,7 +3,7 @@ const Store = require('../models/Store');
 
 const router = express.Router();
 
-// 👇 ДОБАВЛЕНО: список всех магазинов (нужен для админки — разделы "Скидки" и "Форма оплаты")
+// Список всех магазинов (для админки — разделы "Скидки" и "Форма оплаты")
 router.get('/', async (req, res) => {
     try {
         const stores = await Store.find().select('-password');
@@ -13,8 +13,7 @@ router.get('/', async (req, res) => {
     }
 });
 
-// 👇 ДОБАВЛЕНО: данные одного магазина (пригодится в "меню" и "продуктдетайл",
-// чтобы узнать его discountPercent и paymentMethod)
+// Данные одного магазина по ID
 router.get('/:id', async (req, res) => {
     try {
         const store = await Store.findById(req.params.id).select('-password');
@@ -27,6 +26,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// Регистрация магазина
 router.post('/register', async (req, res) => {
     try {
         const { name, email, password, address, zone, discountPercent, paymentMethod } = req.body;
@@ -43,7 +43,7 @@ router.post('/register', async (req, res) => {
             address,
             zone,
             discountPercent: discountPercent || 0,
-            paymentMethod: paymentMethod || 'cash' // 👈 ДОБАВЛЕНО
+            paymentMethod: paymentMethod || 'cash'
         });
 
         await newStore.save();
@@ -53,6 +53,7 @@ router.post('/register', async (req, res) => {
     }
 });
 
+// Авторизация магазина
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -70,7 +71,7 @@ router.post('/login', async (req, res) => {
                 address: store.address,
                 zone: store.zone,
                 discountPercent: store.discountPercent,
-                paymentMethod: store.paymentMethod // 👈 ДОБАВЛЕНО: отдаем способ оплаты при входе
+                paymentMethod: store.paymentMethod
             }
         });
     } catch (err) {
@@ -78,7 +79,7 @@ router.post('/login', async (req, res) => {
     }
 });
 
-// 👇 ДОБАВЛЕНО: обновление скидки и/или способа оплаты магазина (используется в админке)
+// Обновление скидки и/или способа оплаты
 router.put('/:id', async (req, res) => {
     try {
         const { discountPercent, paymentMethod } = req.body;
