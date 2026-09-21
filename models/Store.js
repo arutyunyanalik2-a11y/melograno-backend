@@ -6,7 +6,12 @@ const storeSchema = new mongoose.Schema({
     password: { type: String, required: true },
     address: { type: String, required: true },
     zone: { type: String, required: true },
-    discountPercent: { type: Number, default: 0 } // 👈 Добавлено поле для автоматической скидки
+    discountPercent: { type: Number, default: 0 }, // Скидка магазина в %
+    paymentMethod: {
+        type: String,
+        enum: ['cash', 'card', 'both'],
+        default: 'cash'
+    } // 👈 ДОБАВЛЕНО: способ оплаты магазина
 });
 
 module.exports = mongoose.model('Store', storeSchema);
